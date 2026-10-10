@@ -21,7 +21,8 @@ bugs you can switch on in `menuconfig`.
 | `main/Kconfig.projbuild` | Project options in `menuconfig` (periods, queue length, exercise) | – |
 | `sdkconfig.defaults` | Debug-friendly config (`-Og`, stack canaries, trace facility, halt on panic) | – |
 | `gdb/qemu.gdb` | GDB connect script + helper commands (`app`, `stats`, `rtos`, `bconsumer`) | – |
-| `.vscode/` | Build/QEMU tasks and a launch config for VS Code | – |
+| `.vscode/` | Build/QEMU tasks and a launch config for VS Code (paths for the author's machine) | – |
+| `templates/` | Placeholder versions of the machine-specific files, for use on other machines | – |
 
 Data flow:
 
@@ -35,7 +36,9 @@ Data flow:
 
 ## 1. Build and run in QEMU
 
-Open a PowerShell terminal and activate ESP-IDF (the EIM installer created this script):
+Open a PowerShell terminal and activate ESP-IDF (the EIM installer created this
+script; the paths are the author's, see
+[Setting up on another machine](#setting-up-on-another-machine)):
 
 ```powershell
 . C:\Espressif\tools\Microsoft.v6.1.PowerShell_profile.ps1
@@ -130,8 +133,9 @@ You need the **C/C++** extension (`ms-vscode.cpptools`).
 3. The pre-launch task builds the app and starts `idf.py qemu --gdb monitor` in a terminal panel, where the app's serial output appears. VS Code then attaches, stops once in `app_main`, and continues.
 4. Use breakpoints, Watch, Call Stack and so on as usual. For FreeRTOS commands, type `-exec freertos task` in the **Debug Console**.
 
-The paths in `.vscode/*.json` are specific to this machine: the EIM activation
-script and `xtensa-esp32-elf-gdb.exe`. Adjust them if your install differs.
+The paths in `.vscode/*.json` and `gdb/vscode_setup.gdb` are specific to the
+author's machine. On another machine, see
+[Setting up on another machine](#setting-up-on-another-machine).
 `gdb/vscode_setup.gdb` adds the ESP-IDF Python venv to GDB's `sys.path`.
 Without it, `freertos-gdb` cannot be imported when VS Code starts GDB outside
 an activated shell.
@@ -206,6 +210,62 @@ None of them is QEMU-specific unless noted.
    `0x3ffb9494 <lb_env+112>`) are harmless. Symbols from the ROM ELF overlap
    RAM that the app's heap reuses.
 
+## Setting up on another machine
+
+The C sources, CMake files, `sdkconfig.defaults` and `gdb/qemu.gdb` are
+portable. Four files contain paths from the author's Windows machine
+(ESP-IDF v6.1 installed with EIM under `C:\Espressif`, project in
+`D:\home\code\Projects\esp32\debug_emu`):
+
+| File | Machine-specific content |
+|---|---|
+| `.vscode/tasks.json` | Path to the ESP-IDF activation script; uses PowerShell as the shell |
+| `.vscode/launch.json` | Path to `xtensa-esp32-elf-gdb.exe` |
+| `gdb/vscode_setup.gdb` | Fallback path to the ESP-IDF Python venv (used when `IDF_PYTHON_ENV_PATH` is not set) |
+| `README.md` | The activation and `cd` commands in the examples |
+
+If you only use the command line (sections 1, 2 and 4), you need **none**
+of these files. Activate ESP-IDF your usual way, `cd` into the clone, and
+run the `idf.py` commands.
+
+For VS Code, `templates/` holds copies of the three config files with
+placeholders. Copy them over the originals:
+
+```powershell
+# PowerShell (from the project root)
+Copy-Item -Recurse -Force templates\.vscode, templates\gdb .
+```
+```bash
+# bash/zsh (from the project root)
+cp -r templates/.vscode templates/gdb .
+```
+
+Then replace the placeholders. Run these commands **in a shell where ESP-IDF
+is activated** to find the right values:
+
+| Placeholder | File | What to put there | How to find it |
+|---|---|---|---|
+| `<IDF_ACTIVATE>` (3×) | `.vscode/tasks.json` | The command that activates ESP-IDF | Windows/EIM: `. C:/Espressif/tools/Microsoft.v<ver>.PowerShell_profile.ps1`. Linux/macOS: `. <path-to-esp-idf>/export.sh` (or the activation script EIM created) |
+| `<XTENSA_GDB>` | `.vscode/launch.json` | Full path to the Xtensa GDB | PowerShell: `(Get-Command xtensa-esp32-elf-gdb).Source`. bash: `which xtensa-esp32-elf-gdb` |
+| `<IDF_PYTHON_ENV>` | `gdb/vscode_setup.gdb` | The ESP-IDF Python venv, **with forward slashes** | PowerShell: `$env:IDF_PYTHON_ENV_PATH`. bash: `echo $IDF_PYTHON_ENV_PATH` |
+
+Further notes:
+
+- **Linux/macOS:** in `.vscode/tasks.json`, also replace the `options.shell`
+  block with `"shell": { "executable": "/bin/bash", "args": ["-c"] }`. The
+  template's `vscode_setup.gdb` already handles both venv layouts
+  (`Lib/site-packages` on Windows, `lib/pythonX.Y/site-packages` elsewhere).
+- **Required tools:** ESP-IDF v6.1 (other v5.x/v6.x versions will probably work
+  but are untested), plus the `qemu-xtensa` tool. If `idf.py qemu` says QEMU is
+  not installed, run `python $IDF_PATH/tools/idf_tools.py install qemu-xtensa`
+  in an activated shell.
+- **`sdkconfig` is committed.** If `idf.py` complains after a clone, delete
+  `sdkconfig` and run `idf.py set-target esp32`. It is regenerated from
+  `sdkconfig.defaults`.
+- **Your local changes:** to keep your edited `.vscode/` files out of
+  `git status`, run `git update-index --skip-worktree .vscode/tasks.json
+  .vscode/launch.json gdb/vscode_setup.gdb`.
+
 ## QEMU limitations to keep in mind
 
 - **Not emulated:** Wi-Fi, Bluetooth, most analog peripherals and GPIO interrupts from the outside world. UART, timers, flash, efuse and (open_eth) Ethernet work.
@@ -226,3 +286,7 @@ After editing `sdkconfig.defaults`, delete `sdkconfig` (or run
 `idf.py fullclean`) so the new defaults are picked up. Changes made in
 `menuconfig` go into `sdkconfig`. Copy the ones you want to keep into
 `sdkconfig.defaults`.
+
+## License
+
+[MIT](LICENSE)

@@ -1,0 +1,31 @@
+{
+    // TEMPLATE - copy to .vscode/launch.json and replace the placeholder:
+    //   <XTENSA_GDB>  full path to xtensa-esp32-elf-gdb(.exe). In an activated
+    //                 ESP-IDF shell:
+    //                   PowerShell:   (Get-Command xtensa-esp32-elf-gdb).Source
+    //                   bash/zsh:     which xtensa-esp32-elf-gdb
+    // Requires the "C/C++" extension (ms-vscode.cpptools).
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "QEMU: debug app (cppdbg)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/freertos_debug_demo.elf",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "<XTENSA_GDB>",
+            "miDebuggerServerAddress": "localhost:3333",
+            "setupCommands": [
+                { "text": "cd ${workspaceFolder}" },
+                { "text": "set remotetimeout 10" },
+                { "text": "source gdb/vscode_setup.gdb" }
+            ],
+            "postRemoteConnectCommands": [
+                { "text": "thbreak app_main" }
+            ],
+            "launchCompleteCommand": "exec-continue",
+            "preLaunchTask": "QEMU: start and wait for GDB"
+        }
+    ]
+}

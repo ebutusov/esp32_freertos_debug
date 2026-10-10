@@ -1,0 +1,46 @@
+{
+    // TEMPLATE - copy to .vscode/tasks.json and replace the placeholder:
+    //   <IDF_ACTIVATE>  command that activates ESP-IDF in your shell, e.g.
+    //     Windows (EIM):  . C:/Espressif/tools/Microsoft.v6.1.PowerShell_profile.ps1
+    //     Linux/macOS:    . $HOME/esp/v6.1/esp-idf/export.sh
+    // On Linux/macOS also replace the "options.shell" block below with
+    //   "shell": { "executable": "/bin/bash", "args": ["-c"] }
+    // (and use "&&" instead of ";" if you prefer).
+    "version": "2.0.0",
+    "options": {
+        "shell": {
+            "executable": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
+        }
+    },
+    "tasks": [
+        {
+            "label": "ESP-IDF: build",
+            "type": "shell",
+            "command": "<IDF_ACTIVATE>; idf.py build",
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "QEMU: start and wait for GDB",
+            "type": "shell",
+            "command": "<IDF_ACTIVATE>; idf.py qemu --gdb monitor",
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "qemu",
+                "pattern": { "regexp": "^__never_matches__$" },
+                "background": {
+                    "activeBegins": true,
+                    "beginsPattern": "Executing action",
+                    "endsPattern": "Waiting for GDB to connect"
+                }
+            }
+        },
+        {
+            "label": "QEMU: run (no debugger)",
+            "type": "shell",
+            "command": "<IDF_ACTIVATE>; idf.py qemu monitor",
+            "problemMatcher": []
+        }
+    ]
+}
