@@ -133,6 +133,13 @@ You need the **C/C++** extension (`ms-vscode.cpptools`).
 3. The pre-launch task builds the app and starts `idf.py qemu --gdb monitor` in a terminal panel, where the app's serial output appears. VS Code then attaches, stops once in `app_main`, and continues.
 4. Use breakpoints, Watch, Call Stack and so on as usual. For FreeRTOS commands, type `-exec freertos task` in the **Debug Console**.
 
+**IntelliSense (no red squiggles under `#include "esp_log.h"`):**
+`.vscode/c_cpp_properties.json` points the C/C++ extension at
+`build/compile_commands.json`, which `idf.py build` generates with every
+include path and define. Build once after cloning, before opening the sources.
+If the squiggles stay, run **C/C++: Reset IntelliSense Database** from the
+Command Palette.
+
 The paths in `.vscode/*.json` and `gdb/vscode_setup.gdb` are specific to the
 author's machine. On another machine, see
 [Setting up on another machine](#setting-up-on-another-machine).

@@ -1,0 +1,17 @@
+{
+    // IntelliSense for the C/C++ extension (ms-vscode.cpptools).
+    //
+    // Instead of listing ESP-IDF's ~100 include directories by hand, reuse
+    // build/compile_commands.json, which `idf.py build` generates. It holds
+    // the exact compiler, include paths and defines for every source file.
+    // Build once before opening a file, and again after adding components.
+    "version": 4,
+    "configurations": [
+        {
+            "name": "ESP-IDF",
+            // C standard, defines and IntelliSense mode are taken from the
+            // compiler command in this file (xtensa-esp32-elf-gcc, -std=gnu23).
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json"
+        }
+    ]
+}
