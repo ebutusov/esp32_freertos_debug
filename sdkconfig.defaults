@@ -1,0 +1,44 @@
+# sdkconfig.defaults - project-wide default configuration.
+#
+# Senior tip: commit THIS file to git, not (only) the generated `sdkconfig`.
+# `sdkconfig` is regenerated from defaults + menuconfig changes; keeping your
+# intentional settings here makes them reviewable and survives
+# `idf.py fullclean` / `set-target`.
+# To start fresh from defaults, delete `sdkconfig` and rebuild.
+
+# --- Debug-friendly compilation -------------------------------------------
+# -Og: optimise for debugging. Variables are mostly visible in GDB and
+# stepping follows the source. (Release builds normally use -O2 / -Os.)
+CONFIG_COMPILER_OPTIMIZATION_DEBUG=y
+
+# QEMU emulates a 4 MB flash chip nicely; default 2 MB would also work.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+# --- FreeRTOS introspection -----------------------------------------------
+# Needed for vTaskList(), uxTaskGetSystemState() and the GDB "freertos"
+# commands to show useful information (task numbers, base priority, etc).
+CONFIG_FREERTOS_USE_TRACE_FACILITY=y
+CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS=y
+CONFIG_FREERTOS_VTASKLIST_INCLUDE_COREID=y
+# Run-time stats = "how much CPU time did each task use" (vTaskGetRunTimeStats)
+CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS=y
+
+# Detect stack overflows: canary bytes at the end of each task stack are
+# checked on every context switch. Cheap and catches most overflows.
+CONFIG_FREERTOS_CHECK_STACKOVERFLOW_CANARY=y
+
+# Queue registry: lets debuggers show queues/semaphores by NAME
+# (see vQueueAddToRegistry() in the code).
+CONFIG_FREERTOS_QUEUE_REGISTRY_SIZE=10
+
+# --- Panic behaviour --------------------------------------------------------
+# On a crash, print registers + backtrace and halt instead of rebooting.
+# Halting keeps the "crime scene" intact, so you can attach GDB and inspect
+# it (and the log does not scroll away in an endless reboot loop).
+CONFIG_ESP_SYSTEM_PANIC_PRINT_HALT=y
+
+# --- Task Watchdog ----------------------------------------------------------
+# Watch both IDLE tasks: if any task starves IDLE for 5 s we get a report.
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=5
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0=y
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1=y

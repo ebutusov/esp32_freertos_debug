@@ -1,0 +1,86 @@
+# Kconfig.projbuild lets a component add its own entries to `idf.py menuconfig`.
+# Every option below becomes a CONFIG_... macro in build/config/sdkconfig.h,
+# so C code can do `#if CONFIG_DEMO_...`.
+#
+# Here we use it to build a small "debugging lab": pick ONE deliberately
+# injected bug, rebuild, run in QEMU, and practise finding it with GDB.
+
+menu "FreeRTOS debug demo"
+
+    config DEMO_PRODUCER_A_PERIOD_MS
+        int "Producer A period (ms)"
+        default 300
+        range 10 10000
+        help
+            How often the "fast" producer task sends a message to the queue.
+
+    config DEMO_PRODUCER_B_PERIOD_MS
+        int "Producer B period (ms)"
+        default 700
+        range 10 10000
+        help
+            How often the "slow" producer task sends a message to the queue.
+
+    config DEMO_QUEUE_LENGTH
+        int "Sensor queue length (items)"
+        default 8
+        range 1 64
+        help
+            Number of messages the queue can hold. A queue is a fixed-size
+            buffer allocated once at creation time - choose it based on the
+            worst-case burst you need to absorb, not the average.
+
+    config DEMO_REPORT_PERIOD_MS
+        int "Statistics report period (ms)"
+        default 5000
+        range 500 60000
+        help
+            Period of the FreeRTOS software timer that triggers the
+            statistics / task-list report.
+
+    choice DEMO_DEBUG_EXERCISE
+        prompt "Debug exercise (inject a bug)"
+        default DEMO_DEBUG_EXERCISE_NONE
+        help
+            Select one deliberately injected bug to practise debugging.
+            See README.md, section "Debugging exercises".
+
+        config DEMO_DEBUG_EXERCISE_NONE
+            bool "None - healthy application"
+
+        config DEMO_DEBUG_EXERCISE_NULL_DEREF
+            bool "NULL pointer dereference (LoadProhibited panic)"
+            help
+                A task looks up a "sensor calibration" entry that does not
+                exist and dereferences the NULL result. Practise reading the
+                panic backtrace and decoding it with GDB.
+
+        config DEMO_DEBUG_EXERCISE_STACK_OVERFLOW
+            bool "Task stack overflow"
+            help
+                A task with a too-small stack uses a big local buffer.
+                FreeRTOS stack overflow checking catches it.
+
+        config DEMO_DEBUG_EXERCISE_DEADLOCK
+            bool "Mutex deadlock (lock-order inversion)"
+            help
+                Two tasks take two mutexes in opposite order. No crash, the
+                tasks simply stop. Practise finding Blocked tasks with
+                the GDB "freertos task" command.
+
+        config DEMO_DEBUG_EXERCISE_SLOW_CONSUMER
+            bool "Slow consumer (queue overflow / dropped messages)"
+            help
+                The consumer takes longer per message than producers need
+                to produce one. The queue fills up and producers start
+                dropping data.
+
+        config DEMO_DEBUG_EXERCISE_CPU_HOG
+            bool "CPU hog (Task Watchdog trigger)"
+            help
+                A high-priority task busy-loops without ever blocking. The
+                IDLE task on that core starves and the Task Watchdog Timer
+                (TWDT) reports it.
+    endchoice
+
+endmenu

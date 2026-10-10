@@ -1,0 +1,34 @@
+{
+    // Debug the app running in QEMU from VS Code.
+    // Requires the "C/C++" extension (ms-vscode.cpptools) for the "cppdbg" type.
+    //
+    // Machine-specific bit: miDebuggerPath is where EIM installed the Xtensa
+    // GDB. Adjust if yours differs (`where xtensa-esp32-elf-gdb` in an
+    // activated ESP-IDF shell tells you).
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "QEMU: debug app (cppdbg)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/freertos_debug_demo.elf",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/Espressif/tools/xtensa-esp-elf-gdb/17.1_20260402/xtensa-esp-elf-gdb/bin/xtensa-esp32-elf-gdb.exe",
+            "miDebuggerServerAddress": "localhost:3333",
+            "setupCommands": [
+                // gdb/vscode_setup.gdb uses paths relative to the project root
+                { "text": "cd ${workspaceFolder}" },
+                { "text": "set remotetimeout 10" },
+                { "text": "source gdb/vscode_setup.gdb" }
+            ],
+            // QEMU starts halted at the reset vector: stop once in app_main,
+            // then run.
+            "postRemoteConnectCommands": [
+                { "text": "thbreak app_main" }
+            ],
+            "launchCompleteCommand": "exec-continue",
+            "preLaunchTask": "QEMU: start and wait for GDB"
+        }
+    ]
+}

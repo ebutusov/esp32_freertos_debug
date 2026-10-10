@@ -1,0 +1,44 @@
+{
+    // Machine-specific bit: the ESP-IDF activation script path below comes
+    // from the ESP-IDF Installation Manager (EIM). Adjust if yours differs.
+    "version": "2.0.0",
+    "options": {
+        "shell": {
+            "executable": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
+        }
+    },
+    "tasks": [
+        {
+            "label": "ESP-IDF: build",
+            "type": "shell",
+            "command": ". C:/Espressif/tools/Microsoft.v6.1.PowerShell_profile.ps1; idf.py build",
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            // Builds, starts QEMU halted at reset (waiting for GDB) and opens
+            // the serial monitor in this terminal. The task counts as "ready"
+            // once idf.py prints "Waiting for GDB to connect".
+            "label": "QEMU: start and wait for GDB",
+            "type": "shell",
+            "command": ". C:/Espressif/tools/Microsoft.v6.1.PowerShell_profile.ps1; idf.py qemu --gdb monitor",
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "qemu",
+                "pattern": { "regexp": "^__never_matches__$" },
+                "background": {
+                    "activeBegins": true,
+                    "beginsPattern": "Executing action",
+                    "endsPattern": "Waiting for GDB to connect"
+                }
+            }
+        },
+        {
+            "label": "QEMU: run (no debugger)",
+            "type": "shell",
+            "command": ". C:/Espressif/tools/Microsoft.v6.1.PowerShell_profile.ps1; idf.py qemu monitor",
+            "problemMatcher": []
+        }
+    ]
+}
