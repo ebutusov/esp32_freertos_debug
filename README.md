@@ -159,12 +159,53 @@ each bug *before* reading the comments in `main/debug_exercises.c`.
 | Exercise | Symptom you will see | How to diagnose it |
 |---|---|---|
 | **NULL dereference** | `Guru Meditation Error: Core 0 panic'ed (LoadProhibited)`, `EXCVADDR: 0x00000004`, CPU halted | `idf.py monitor` decodes the `Backtrace:` line to file:line. Manual decoding: `xtensa-esp32-elf-addr2line -pfiaC -e build/freertos_debug_demo.elf <addresses>`. A **small EXCVADDR** (like `0x4`) means "NULL pointer + struct member offset". |
-| **Stack overflow** | `free stack` counts down 1572 → 164 bytes, then `***ERROR*** A stack overflow in task parser has been detected.` and a backtrace ending in `\|<-CORRUPTED` | The canary is checked only at a context switch, so the stack may already be corrupted when it fires, hence the broken backtrace. For an exact hit, enable `CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK`. |
+| **Stack overflow** | `free stack` counts down 1572 → 164 bytes, then `***ERROR*** A stack overflow in task parser has been detected.` and a backtrace ending in `\|<-CORRUPTED` | The canary is checked only at a context switch, so the stack may already be corrupted when it fires, hence the broken backtrace. To catch the guilty instruction instead, see [Exact hit with the end-of-stack watchpoint](#exact-hit-with-the-end-of-stack-watchpoint) below. |
 | **Deadlock** | No crash. The `transfer` log lines never appear, and the run-time counters of `transfer_AB`/`transfer_BA` freeze. | Run `freertos semaphore`: `lock_A` is held by `transfer_AB` and awaited by `transfer_BA`, and `lock_B` is the other way round. That cycle is the deadlock. |
 | **Slow consumer** | `queue full, dropped seq N` warnings, `queue fill: 8/8`, latency of seconds | Watch `stats` over time, or put a watchpoint on `g_app.stats.dropped[0]`. |
 | **CPU hog** | The IDLE0 CPU% keeps falling, the producers on core 0 stop, and the hog's own counter is frozen | In QEMU you must re-enable the watchdog first (see the gotchas). Then the Task WDT reports `IDLE0 (CPU 0)` and `CPU 0: hog`. |
 
 Switch back to **None** when you are done.
+
+### Exact hit with the end-of-stack watchpoint
+
+The canary check reports a stack overflow *after the fact*. ESP-IDF can
+also catch the overflowing write itself:
+
+**Enable it:** `idf.py menuconfig` → **Component config → FreeRTOS → Port →
+Enable stack overflow debug watchpoint** (`CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK`).
+Use it together with the **Stack overflow** exercise.
+
+**How it works:** on every task switch, FreeRTOS arms the last of the ESP32's
+two hardware watchpoints on the lowest 32 bytes of the incoming task's stack
+(`vPortSetStackWatchpoint()`). Any write there raises a debug exception right
+at the guilty instruction.
+
+**In QEMU, use it with GDB attached.** Run `idf.py qemu --gdb monitor` in one
+terminal and `idf.py gdb` in another, then:
+
+```gdb
+(gdb) break _DebugExceptionVector
+(gdb) continue
+(gdb) p/x $debugcause                              # 0x104 = data watchpoint #1, the stack watchpoint
+(gdb) info line *$epc6                             # the instruction that overflowed the stack
+(gdb) p ((TCB_t *)pxCurrentTCBs[0])->pcTaskName   # the task ([0] = core 0, [1] = core 1)
+(gdb) p/x $dbreaka1                                # watched address = pxStack rounded up to 32 bytes
+```
+
+What this showed in this demo:
+- `$debugcause = 0x104` and the task was `parser`, during the `ESP_LOGI` at recursion depth 3.
+- `$epc6` pointed at the first instruction of `__retarget_lock_acquire_recursive`, a C-library lock taken inside the log call. On Xtensa, a function's `entry` instruction can spill register windows onto the stack, and that spill was the write past the limit.
+- The canary check would only have reported this later, with a `|<-CORRUPTED` backtrace and no hint of the instruction.
+
+**Without a debugger:** on real hardware the ESP-IDF docs say you get a
+panic with `Debug exception reason: Stack canary watchpoint triggered (parser)`.
+That was not tested on a board for this demo. In QEMU the panic output never
+appears (see gotcha 9).
+
+**Costs and limits:**
+- GDB has one hardware watchpoint fewer for your own `watch` commands.
+- Each task loses up to 60 bytes of usable stack to alignment.
+- It fires only if a write actually lands in those 32 bytes. A large frame can jump right past them, so keep the canary check enabled as well.
 
 ## 5. Gotchas found while building this demo
 
@@ -216,6 +257,15 @@ None of them is QEMU-specific unless noted.
 8. **Odd symbols next to heap addresses** in `freertos task` (such as
    `0x3ffb9494 <lb_env+112>`) are harmless. Symbols from the ROM ELF overlap
    RAM that the app's heap reuses.
+
+9. **The end-of-stack watchpoint hangs silently in QEMU without GDB.** With
+   `CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK` and the stack-overflow exercise,
+   `idf.py qemu monitor` stopped after "parse depth 3": no panic message, no
+   backtrace. Under GDB, the watchpoint fired correctly (`_DebugExceptionVector`,
+   then `_xt_debugexception`, then `_xt_panic`), but `panicHandler` was never
+   reached. When `_xt_panic` started, `sp` was only 20 bytes above the bottom of
+   the overflowed stack, and the panic code runs on that same stack. Use the GDB
+   recipe in [Exact hit with the end-of-stack watchpoint](#exact-hit-with-the-end-of-stack-watchpoint).
 
 ## Setting up on another machine
 
